@@ -1,6 +1,8 @@
+Wed Dec 22 09:04:54 EST 2004
+0.61 - Added Test::Exception prereq
 Mon Dec 20 15:53:16 EST 2004
-0.6 - Allowed for "REF" in tests for 5.8
-    - Changed Module::Build usage
+0.6  - Allowed for "REF" in tests for 5.8
+     - Changed Module::Build usage
 Tue May 11 17:00:06 EST 2004
-0.5 - added README Changes
-    - trim long lines in docs
+0.5  - added README Changes
+     - trim long lines in docs

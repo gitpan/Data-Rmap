@@ -1,5 +1,5 @@
 package Data::Rmap;
-our $VERSION = 0.6;
+our $VERSION = 0.61;
 
 =head1 NAME
 

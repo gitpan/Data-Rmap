@@ -7,6 +7,7 @@ Module::Build->new(
 	license => 'perl',
 	requires => {
 		'Scalar::Util' => 0,
+		'Test::Exception' => 0,
 		# ?? perl => 5.6.0
 	},
 	create_makefile_pl => 'traditional',
