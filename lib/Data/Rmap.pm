@@ -1,5 +1,5 @@
 package Data::Rmap;
-our $VERSION = 0.4;
+our $VERSION = 0.5;
 
 =head1 NAME
 
@@ -11,14 +11,14 @@ Data::Rmap - recursive map, apply a block to a data structure
  1234
 
  $ perl -MData::Rmap=:all
- rmap_all { print "Got ", (ref($_) || "?") ,"\n" } \@array, \%hash, \*glob;
+ rmap_all { print (ref($_) || "?") ,"\n" } \@array, \%hash, \*glob;
 
  # OUTPUT (Note: a GLOB always has a SCALAR, hence the last two items)
- # Got ARRAY
- # Got HASH
- # Got GLOB
- # Got SCALAR
- # Got ?
+ # ARRAY
+ # HASH
+ # GLOB
+ # SCALAR
+ # ?
 
 
  # Upper-case your leaves in-place
@@ -33,13 +33,14 @@ Data::Rmap - recursive map, apply a block to a data structure
  # ['A','B','C'] {'key' => 'A VALUE'}
 
 
- # Simple array dumper.  Use $self->recurse method to alter traversal order 
+ # Simple array dumper.  
+ # Uses $self->recurse method to alter traversal order 
  ($dump) = rmap_to {
 
-    return "'$_'" unless ref($_); # scalars are quote wrapped and returned
+    return "'$_'" unless ref($_); # scalars are quoted and returned
 
-	my $self = shift;
-	# use $self->recurse to grab results and wrap them
+    my $self = shift;
+    # use $self->recurse to grab results and wrap them
     return '[ ' . join(', ', $self->recurse() ) . ' ]';
 
   } ARRAY|VALUE,  [ 1, [ 2, [ [ 3 ], 4 ] ], 5 ];  
@@ -115,7 +116,7 @@ bitwise "or" of whatever types you choose (imported with :types):
  SCALAR - scalar refernce, eg. \1
  REF    - higher-level reference, eg. \\1, \\{}
           B<NOT> any reference type, see <Scalar::Util>'s reftype:
-          perl -MScalar::Util=reftype -le 'print for map reftype($_), \1, \\1'
+          perl -MScalar::Util=reftype -le 'print map reftype($_), \1, \\1'
  GLOB   - glob reference, eg. \*x  
           (scalar, hash and array recursed)
  ALL    - all of the above
@@ -140,7 +141,8 @@ Recurse and call the BLOCK on everything.  $want = ALL
 
 =item rmap_scalar { ... }  @list
 
-Recurse and call the BLOCK on non-collection scalars.  $want = VALUE|SCALAR|REF
+Recurse and call the BLOCK on non-collection scalars.  
+$want = VALUE|SCALAR|REF
 
 =item rmap_hash 
 
@@ -230,7 +232,7 @@ The $want state described in L<rmap_to>.
  } $data_structure;
 
 
- # Grep recursively, finding public objects (note the cut to stop recursion)
+ # Grep recursively, finding public objects (note the cut)
  use Scalar::Util qw(blessed);
  my @objects = rmap_ref {
      blessed($_) ?  cut($_) : ();
@@ -238,7 +240,7 @@ The $want state described in L<rmap_to>.
 
 
  # Return a modified structure
- # (result flattening means we must cheat by cloning then editing in place)
+ # (result flattening means we must cheat by cloning then modifying)
  use Storable qw(dclone);
  use Lingua::EN::Numbers::Easy;
 
