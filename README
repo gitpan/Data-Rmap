@@ -280,6 +280,9 @@ Troubleshooting
     there is an intervening hash.
 
 TODO
+    put for @_ iin wrapper to allow parameters in a different wrapper, solve
+    localizing problem.
+
     Note that the package/class name of the "State Object" is subject to
     change.
 

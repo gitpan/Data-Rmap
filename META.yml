@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: Data-Rmap
-version: 0.5
+version: 0.6
 author:
   - |-
     Brad Bowman E<lt>rmap@bereft.netE<gt>
@@ -12,5 +12,5 @@ requires:
 provides:
   Data::Rmap:
     file: lib/Data/Rmap.pm
-    version: 0.5
-generated_by: Module::Build version 0.25
+    version: 0.6
+generated_by: Module::Build version 0.26

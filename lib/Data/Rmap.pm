@@ -1,5 +1,5 @@
 package Data::Rmap;
-our $VERSION = 0.5;
+our $VERSION = 0.6;
 
 =head1 NAME
 
@@ -321,6 +321,9 @@ there is an intervening hash.
 
 
 =head1 TODO
+
+put for @_ iin wrapper to allow parameters in a different wrapper,
+solve localizing problem.
 
 Note that the package/class name of the L<State Object>
 is subject to change.

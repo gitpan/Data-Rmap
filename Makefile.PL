@@ -5,7 +5,7 @@ WriteMakefile
           'NAME' => 'Data::Rmap',
           'VERSION_FROM' => 'lib/Data/Rmap.pm',
           'PREREQ_PM' => {
-                           'Scalar::Util' => 0
+                           'Scalar::Util' => '0'
                          },
           'INSTALLDIRS' => 'site',
           'PL_FILES' => {}

@@ -154,13 +154,13 @@ like(join(' ',
 
 like(join(' ', 
 	rmap_all { $_ } @types),
-	qr/^1 ARRAY\S+ HASH\S+ SCALAR\S+ SCALAR\S+ 2 GLOB\S+ SCALAR\S+ 3$/,
+	qr/^1 ARRAY\S+ HASH\S+ (REF|SCALAR)\S+ SCALAR\S+ 2 GLOB\S+ SCALAR\S+ 3$/,
 	'rmap_all types'
 );
 
 like(join(' ', 
 	rmap_scalar { $_ } @types),
-	qr/^1 SCALAR\S+ SCALAR\S+ 2 SCALAR\S+ 3$/,
+	qr/^1 (REF|SCALAR)\S+ SCALAR\S+ 2 SCALAR\S+ 3$/,
 	'rmap_scalar types'
 );
 
@@ -178,7 +178,7 @@ like(join(' ',
 
 like(join(' ', 
 	rmap_ref { $_ } @types),
-	qr/^ARRAY\S+ HASH\S+ SCALAR\S+ SCALAR\S+ SCALAR\S+$/,
+	qr/^ARRAY\S+ HASH\S+ (REF|SCALAR)\S+ SCALAR\S+ SCALAR\S+$/,
 	'rmap_ref types'
 );
 
