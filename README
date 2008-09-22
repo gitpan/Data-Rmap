@@ -306,6 +306,8 @@ TODO
 
     Ensure that no memory leaks are possible, leaking the closure.
 
+    Read http://www.cs.vu.nl/boilerplate/
+
 SEE ALSO
     map, grep, Storable's dclone, Scalar::Util's reftype and blessed
 

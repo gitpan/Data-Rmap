@@ -2,30 +2,33 @@
 use strict;
 use Module::Build;
 
-Module::Build->new(
+my $class = Module::Build->subclass(
+	code => q{
+		sub ACTION_deb {
+			use strict;
+			my $self = shift;
+			$self->dispatch('distdir');
+			my $distdir = $self->dist_name .'-'. $self->dist_version;
+			my $lc_distdir = lc($distdir);
+
+			# do_system echos
+			$self->do_system("rm","-rf", $lc_distdir) or die $!;
+			$self->do_system("mv", $distdir, $lc_distdir) or die $!;
+			$self->do_system("cp","-r", "debian", $lc_distdir) or die $!;
+			$self->add_to_cleanup($lc_distdir);
+
+			$self->do_system("cd $lc_distdir  && debuild -us -uc") or die $!;
+		}
+	},
+);
+
+$class->new(
 	module_name => 'Data::Rmap',
 	license => 'perl',
 	requires => {
 		'Scalar::Util' => 0,
 		'Test::Exception' => 0,
-		# ?? perl => 5.6.0
 	},
 	create_makefile_pl => 'traditional',
-	#pm_files => { 'Rmap.pm' => 'lib/Data/Rmap.pm' },
 )->create_build_script;
 
-__END__
-my $class = Module::Build->subclass(
-	code => q{
-		sub ACTION_xxx {
-			my $class = shift;
-			$class->SUPER::ACTION_xxx(@_);
-			#`perl -pie 's/\t/    /g'`;
-		}
-	},
-sub ACTION_distdir {
-    my $self = shift;
-    $self->SUPER::ACTION_distdir; # do default stuff
-    ... do tabs2spaces to files in $self->dist_dir; ...
-}
-);

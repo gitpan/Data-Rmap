@@ -1,5 +1,5 @@
 package Data::Rmap;
-our $VERSION = 0.61;
+our $VERSION = 0.62;
 
 =head1 NAME
 
@@ -319,6 +319,11 @@ If there's two paths to an element, both will need to be cut.
 If there's two paths to an element, one will be taken randomly when
 there is an intervening hash.
 
+Autovivification can lead to "Deep recursion" warnings if you test
+C<exists $_->{this}{that}> instead of 
+C<exists $_->{this} && exists $_->{this}{that}>
+as you may follow a long chain of "this"s
+
 
 =head1 TODO
 
@@ -348,6 +353,8 @@ The prototype syntax is a bit too flaky....
 
 Ensure that no memory leaks are possible, leaking the closure.
 
+Read http://www.cs.vu.nl/boilerplate/
+
 =head1 SEE ALSO
 
 map, grep, L<Storable>'s dclone, L<Scalar::Util>'s reftype and blessed
@@ -359,12 +366,26 @@ Faint traces of treemap:
 =head1 AUTHOR
 
 Brad Bowman E<lt>rmap@bereft.netE<gt>
-Copyright (C) 2004 All rights reserved.
+
+=head1 LICENCE AND COPYRIGHT
+       
+Copyright (c) 2004-2008 Brad Bowman (E<lt>rmap@bereft.netE<gt>). 
+All rights reserved.
+       
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. 
+See L<perlartistic> and L<perlgpl>.
+       
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 =cut
 
 # Early design discussion:
 # http://www.perlmonks.org/index.pl?node_id=295642
+# wantarray
+# http://www.class-dbi.com/cgi-bin/wiki/index.cgi?AtomicUpdates
 
 use warnings;
 use strict;
@@ -470,7 +491,7 @@ sub _rmap {
 
 		# Call the $code
 		if($self->want & $type) {
-			my $e; # local($@) and rethrow caused porblems
+			my $e; # local($@) and rethrow caused problems
 			my @got;
 			{
 				local ($@); # don't trample, cut impl. should be transparent
