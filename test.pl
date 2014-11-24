@@ -2,6 +2,7 @@
 use strict;
 use Test::More 'no_plan'; # tests =>$n
 use Test::Exception;
+use Scalar::Util qw(reftype);
 
 BEGIN { use_ok( 'Data::Rmap' ); }
 use Data::Dumper;
@@ -14,12 +15,12 @@ our $data = {
           'hash' => {
                       'a' => 'vala',
                       'b' => 'valb',
-					  'c' => { qn=> 'this' },
+                      'c' => { qn=> 'this' },
                     },
-		  'ref_to_hash' => \{ qn=> 'that' },
+          'ref_to_hash' => \{ qn=> 'that' },
         };
 
-# shared value 
+# shared value
 $data->{share_ref} = \$data->{arrays}[0][0];
 $data->{another_obj} = \do{ my $o = ${$data->{ref_to_hash}}};
 
@@ -29,7 +30,7 @@ my $orig_dump = Dumper($data);
 rmap { } $data;
 rmap_all { } $data;
 
-# test importing imlicitly
+# test importing implicitly
 use Data::Rmap qw(rmap_scalar);
 rmap_scalar { } $data;
 use Data::Rmap qw(:types rmap_to);
@@ -38,7 +39,7 @@ use Data::Rmap qw(:all);
 rmap_hash { } $data;
 rmap_array { } $data;
 
-# check nothign changed
+# check nothing changed
 ok(Dumper($data) eq $orig_dump, 'nothing changed');
 
 rmap { $_ = "#$_#"; } $data; # all the leaves
@@ -51,9 +52,9 @@ ok(${$data->{ref_to_hash}}->{qn} eq '#that#', "ref_to_hash done #that#");
 
 my $count = 1;
 rmap_all {
-	cut if ref($_) eq 'ARRAY';
-	$_ = "=\U$_=" if !ref($_); # leaves
-	$_->{qnum} = $count++ if ref($_) eq 'HASH' && exists $_->{qn};
+    cut if ref($_) eq 'ARRAY';
+    $_ = "=\U$_=" if !ref($_); # leaves
+    $_->{qnum} = $count++ if ref($_) eq 'HASH' && exists $_->{qn};
 } $data;
 #diag(Dumper $data);
 
@@ -80,7 +81,7 @@ throws_ok { rmap { $_++ } 1 } $ro_err, 'read-only scalar';
 throws_ok { rmap { $_++ } \1 } $ro_err, 'read-only scalar ref';
 throws_ok { rmap { $_++ } [\1] } $ro_err, 'read-only scalar ref in array';
 throws_ok { rmap { $_++ } {1,\1} } $ro_err, 'read-only scalar ref in hash';
-*ro = \1; 
+*ro = \1;
 throws_ok { rmap { $_++ } *ro } $ro_err, 'read-only scalar ref in glob';
 
 # test returns
@@ -94,98 +95,118 @@ is_deeply([ rmap { ++$_ } [1,[2]] ], [2,3], 'flattens 2');
 # test cut
 # take first element of each array reference found
 is_deeply([ rmap_array { cut($_->[0]) } [1,0],[2,0,[0]],[[3],0], {0,\[4]} ],
-			[                            1,    2,        [3],         4   ],
-			'cut limits recursion');
+            [                            1,    2,        [3],         4   ],
+            'cut limits recursion');
 
 is_deeply([ rmap { cut(++$_) } [1,2] ], [2,3], 'cut return altered pre-inc');
 is_deeply([ rmap { ++$_; cut() } [1,2] ], [], 'cut can return nothing');
 
 # test $_[0]->recurse
 my ($array_dump) = rmap_to {
-	return $_ unless ref($_);
-	'[ ' . join(', ', $_[0]->recurse() ) . ' ]';
+    return $_ unless ref($_);
+    '[ ' . join(', ', $_[0]->recurse() ) . ' ]';
 } ARRAY|VALUE,   [ 1, [ 2, [ [ 3 ], 4 ] ], 5 ];
 is($array_dump, '[ 1, [ 2, [ [ 3 ], 4 ] ], 5 ]', 'dumper dumps');
 
 my $tree = [
-	one =>
-	two => 
-	[ 
-		three_one => 
-		three_two => 
-		[ 
-			three_three_one =>
-		],
-		three_four =>
-	],
-	four =>
-	[
-		[
-			five_one_one =>
-		],
-	],
+    one =>
+    two =>
+    [
+        three_one =>
+        three_two =>
+        [
+            three_three_one =>
+        ],
+        three_four =>
+    ],
+    four =>
+    [
+        [
+            five_one_one =>
+        ],
+    ],
 ];
 
 my $got = '';
 our @path = ('q');
 rmap_to {
-	if(ref $_) {
-		local(@path) = (@path, 1); # ARRAY adds a new level to the path
-		$_[0]->recurse(); # does stuff within local(@path)'s scope
-	} else {
-		$got .= join('.', @path) . ' ';
-	}
-	$path[-1]++; # bump last element (even when it was an aref)
+    if(ref $_) {
+        local(@path) = (@path, 1); # ARRAY adds a new level to the path
+        $_[0]->recurse(); # does stuff within local(@path)'s scope
+    } else {
+        $got .= join('.', @path) . ' ';
+    }
+    $path[-1]++; # bump last element (even when it was an aref)
 } ARRAY|VALUE, $tree;
 
-is($got, 'q.1 q.2 q.3.1 q.3.2 q.3.3.1 q.3.4 q.4 q.5.1.1 ', 
-			'tree numbering w/ recurse');
+is($got, 'q.1 q.2 q.3.1 q.3.2 q.3.3.1 q.3.4 q.4 q.5.1.1 ',
+            'tree numbering w/ recurse');
 
+
+# assign each of the THINGs in GLOB x
+local *x;
+*x = \3;
+*x = sub {};
+*x = {};
+*x = [];
 
 # test each name works as expected
-our $x = 3;
-my @types = (1, [], {}, \\2, \*x);
+my @types = (1, [], {}, \\2, \*x, sub {});
 #$_ = join(' ', rmap_all { $_ } @types); s/\(.*?\)/\\S+/g; diag($_);
-like(join(' ', 
-	rmap { $_ } @types),
-	qr/^1 2 3$/,
-	'rmap types'
-);
-
-like(join(' ', 
-	rmap_all { $_ } @types),
-	qr/^1 ARRAY\S+ HASH\S+ (REF|SCALAR)\S+ SCALAR\S+ 2 GLOB\S+ SCALAR\S+ 3$/,
-	'rmap_all types'
-);
-
-like(join(' ', 
-	rmap_scalar { $_ } @types),
-	qr/^1 (REF|SCALAR)\S+ SCALAR\S+ 2 SCALAR\S+ 3$/,
-	'rmap_scalar types'
-);
-
-like(join(' ', 
-	rmap_hash { $_ } @types),
-	qr/^HASH\S+$/,
-	'rmap_hash types'
-);
-
-like(join(' ', 
-	rmap_array { $_ } @types),
-	qr/^ARRAY\S+$/,
-	'rmap_array types'
-);
-
-like(join(' ', 
-	rmap_ref { $_ } @types),
-	qr/^ARRAY\S+ HASH\S+ (REF|SCALAR)\S+ SCALAR\S+ SCALAR\S+$/,
-	'rmap_ref types'
+like(join(' ',
+    rmap { $_ } @types),
+    qr/^1 2 3$/,
+    'rmap types'
 );
 
 
-like(join(' ', 
-	rmap_to { $_ } GLOB|HASH, @types),
-	qr/^HASH\S+ GLOB\S+$/,
-	'rmap_to GLOB|HASH types'
+is(join(' ',
+    rmap_all { reftype($_) || $_ } @types),
+    '1 ARRAY HASH REF SCALAR 2 GLOB SCALAR 3 ARRAY HASH',
+    'rmap_all types'
+);
+
+# stringification of references, eg. ARRAY(0x1e8ce28) =~ /ARRAY\S+/
+like(join(' ',
+    rmap_scalar { $_ } @types),
+    qr/^1 (REF|SCALAR)\S+ SCALAR\S+ 2 SCALAR\S+ 3$/,
+    'rmap_scalar types'
+);
+
+like(join(' ',
+    rmap_hash { $_ } @types),
+    qr/^HASH\S+ HASH\S+$/,
+    'rmap_hash types'
+);
+
+like(join(' ',
+    rmap_array { $_ } @types),
+    qr/^ARRAY\S+ ARRAY\S+$/,
+    'rmap_array types'
+);
+
+like(join(' ',
+    rmap_code { $_ } @types),
+    qr/^CODE\S+ CODE\S+$/,
+    'rmap_array types'
+);
+
+is(join(' ',
+    rmap_ref { reftype($_) || $_ } @types),
+    'ARRAY HASH REF SCALAR SCALAR ARRAY HASH',
+    'rmap_ref types'
+);
+
+
+like(join(' ',
+    rmap_to { $_ } GLOB|HASH, @types),
+    qr/^HASH\S+ GLOB\S+ HASH\S+$/,
+    'rmap_to GLOB|HASH types'
+);
+
+like(join(' ',
+    rmap_to { $_ } GLOB|CODE, @types),
+    qr/^GLOB\S+ CODE\S+ CODE\S+$/,
+    'rmap_to GLOB|HASH types'
 );
 

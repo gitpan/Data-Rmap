@@ -1,5 +1,5 @@
 package Data::Rmap;
-our $VERSION = 0.62;
+our $VERSION = 0.64;
 
 =head1 NAME
 
@@ -33,8 +33,8 @@ Data::Rmap - recursive map, apply a block to a data structure
  # ['A','B','C'] {'key' => 'A VALUE'}
 
 
- # Simple array dumper.  
- # Uses $self->recurse method to alter traversal order 
+ # Simple array dumper.
+ # Uses $self->recurse method to alter traversal order
  ($dump) = rmap_to {
 
     return "'$_'" unless ref($_); # scalars are quoted and returned
@@ -43,7 +43,7 @@ Data::Rmap - recursive map, apply a block to a data structure
     # use $self->recurse to grab results and wrap them
     return '[ ' . join(', ', $self->recurse() ) . ' ]';
 
-  } ARRAY|VALUE,  [ 1, [ 2, [ [ 3 ], 4 ] ], 5 ];  
+  } ARRAY|VALUE,  [ 1, [ 2, [ [ 3 ], 4 ] ], 5 ];
 
  print "$dump\n";
  # OUTPUT
@@ -54,14 +54,14 @@ Data::Rmap - recursive map, apply a block to a data structure
 
  rmap BLOCK LIST
 
-Recursively evaluate a BLOCK over a list of data structures 
+Recursively evaluate a BLOCK over a list of data structures
 (locally setting $_ to each element) and return the list composed
 of the results of such evaluations.  $_ can be used to modify
 the elements.
 
 Data::Rmap currently traverses HASH, ARRAY, SCALAR and GLOB reference
 types and ignores others.  Depending on which rmap_* wrapper is used,
-the BLOCK is called for only scalar values, arrays, hashes, references, 
+the BLOCK is called for only scalar values, arrays, hashes, references,
 all elements or a customizable combination.
 
 The list of data structures is traversed pre-order in a depth-first fashion.
@@ -77,7 +77,7 @@ To simultaneously return values and cut, simply pass the return list
 to cut:  C<cut('add','to','returned');>
 
 The first parameter to the BLOCK is an object which maintains the
-state of the traversal.  Methods available on this object are 
+state of the traversal.  Methods available on this object are
 described in L<State Object> below.
 
 =head1 EXPORTS
@@ -88,8 +88,8 @@ By default:
 
 Optionally:
 
- rmap_scalar rmap_hash rmap_array rmap_ref rmap_to
- :types => [ qw(NONE VALUE HASH ARRAY SCALAR REF OBJECT ALL) ],
+ rmap_scalar rmap_hash rmap_array rmap_code rmap_ref rmap_to
+ :types => [ qw(NONE VALUE HASH ARRAY SCALAR REF CODE ALL) ],
  :all => ... # everything
 
 =head1 Functions
@@ -100,13 +100,13 @@ selective while rmap_to takes an extra parameter permitting you
 to provide selection criteria.  Furthermore, you can always
 just rmap_all and skip nodes which are not of interest.
 
-=over 4 
+=over 4
 
 =item rmap_to { ... } $want, @data_structures;
 
 Most general first.
 
-Recurse the @data_structures and apply the BLOCK to 
+Recurse the @data_structures and apply the BLOCK to
 elements selected by $want.  The $want parameter is the
 bitwise "or" of whatever types you choose (imported with :types):
 
@@ -117,9 +117,10 @@ bitwise "or" of whatever types you choose (imported with :types):
  REF    - higher-level reference, eg. \\1, \\{}
           B<NOT> any reference type, see <Scalar::Util>'s reftype:
           perl -MScalar::Util=reftype -le 'print map reftype($_), \1, \\1'
- GLOB   - glob reference, eg. \*x  
-          (scalar, hash and array recursed)
- ALL    - all of the above
+ GLOB   - glob reference, eg. \*x
+          (scalar, hash and array recursed, code too as of 0.63)
+ ALL    - all of the above (not CODE)
+ CODE   - code references (as of 0.63)
  NONE   - none of the above
 
 So to call the block for arrays and scalar values do:
@@ -127,7 +128,7 @@ So to call the block for arrays and scalar values do:
  use Data::Rmap ':all';         # or qw(:types rmap_to)
  rmap { ... } ARRAY|VALUE, @data_structures;
 
-(ALL & !GLOB) might also be handy.
+(ALL | CODE) and (ALL & !GLOB) might also be handy.
 
 The remainder of the wrappers are given in terms of the $want for rmap_to.
 
@@ -141,20 +142,24 @@ Recurse and call the BLOCK on everything.  $want = ALL
 
 =item rmap_scalar { ... }  @list
 
-Recurse and call the BLOCK on non-collection scalars.  
+Recurse and call the BLOCK on non-collection scalars.
 $want = VALUE|SCALAR|REF
 
-=item rmap_hash 
+=item rmap_hash
 
 Recurse and call the BLOCK on hash refs.  $want = HASH
 
-=item rmap_array 
+=item rmap_array
 
 Recurse and call the BLOCK on array refs.  $want = ARRAY
 
-=item rmap_ref 
+=item rmap_code
 
-Recurse and call the BLOCK on all references (not GLOBS).  
+Recurse and call the BLOCK on code refs.  $want = CODE
+
+=item rmap_ref
+
+Recurse and call the BLOCK on all "normal" references:
 $want = HASH|ARRAY|SCALAR|REF
 
 Note: rmap_ref isn't the same as rmap_to {} REF
@@ -162,8 +167,8 @@ Note: rmap_ref isn't the same as rmap_to {} REF
 =item cut(@list)
 
 Don't traverse sub-elements and return the @list immediately.
-For example, if $_ is an ARRAY reference, then the array's elements 
-are not traversed.  
+For example, if $_ is an ARRAY reference, then the array's elements
+are not traversed.
 
 If there's two paths to an element, both will need to be cut.
 
@@ -174,7 +179,7 @@ If there's two paths to an element, both will need to be cut.
 The first parameter to the BLOCK is an object which maintains
 most of the traversal state (except current node, which is $_).
 I<You will ignore it most of the time>.
-The "recurse" method may be useful.  
+The "recurse" method may be useful.
 Other methods should only be used in throw away tools, see L<TODO>
 
 Methods:
@@ -196,16 +201,12 @@ some situations.
 
 =item seen
 
-(Warning: I'm undecided whether this method should be public)
-
 Reference to the HASH used to track where we have visited.
 You may want to modify it in some situations (though I haven't yet).
 Beware circular references.  The (current) convention used for the key
 is in the source.
 
 =item want
-
-(Warning: I'm undecided whether this method should be public)
 
 The $want state described in L<rmap_to>.
 
@@ -246,7 +247,7 @@ The $want state described in L<rmap_to>.
 
  $words = [ 1, \2, { key => 3 } ];
  $nums = dclone $words;
- rmap { $_ = $N{$_} || $_ } $nums; 
+ rmap { $_ = $N{$_} || $_ } $nums;
 
 
  # Make an assertion about a structure
@@ -261,17 +262,17 @@ The $want state described in L<rmap_to>.
  $tree = [
      one =>
      two =>
-     [   
+     [
          three_one =>
          three_two =>
-         [   
+         [
              three_three_one =>
          ],
          three_four =>
      ],
      four =>
-     [   
-         [   
+     [
+         [
              five_one_one =>
          ],
      ],
@@ -289,21 +290,36 @@ The $want state described in L<rmap_to>.
  } ARRAY|VALUE, $tree;
 
  # OUTPUT
- # q.1 = one 
- # q.2 = two 
- # q.3.1 = three_one 
- # q.3.2 = three_two 
- # q.3.3.1 = three_three_one 
- # q.3.4 = three_four 
- # q.4 = four 
- # q.5.1.1 = five_one_one 
+ # q.1 = one
+ # q.2 = two
+ # q.3.1 = three_one
+ # q.3.2 = three_two
+ # q.3.3.1 = three_three_one
+ # q.3.4 = three_four
+ # q.4 = four
+ # q.5.1.1 = five_one_one
 
-=head1 Troubleshooting 
+ # replace CODE with "<CODE>"
+ $ perl -MData::Rmap=:all -E 'say join ":", rmap_code { "<CODE>" } sub{},sub{}'
+ <CODE>:<CODE>
+
+ # look inside code refs with PadWalker
+ $ perl -MData::Rmap=:all -MSub::Identify=:all -MPadWalker=:all -MSub::Name
+   use 5.10.0;
+   my $s = sub {}; sub A::a { $s };
+   say join ", ",
+    rmap_code {
+        sub_fullname($_),                       # name string
+        map { $_[0]->recurse } closed_over($_)  # then recurse the sub innards
+    } \*A::a, subname b => sub { $s };
+   # A::a, main::__ANON__, main::b
+
+=head1 Troubleshooting
 
 Beware comma after block:
 
  rmap { print }, 1..3;
-               ^-------- bad news, you get and empty list:
+               ^-------- bad news, you get an empty list:
  rmap(sub { print $_; }), 1..3;
 
 If you don't import a function, perl's confusion may produce:
@@ -320,21 +336,15 @@ If there's two paths to an element, one will be taken randomly when
 there is an intervening hash.
 
 Autovivification can lead to "Deep recursion" warnings if you test
-C<exists $_->{this}{that}> instead of 
-C<exists $_->{this} && exists $_->{this}{that}>
+C<< exists $_->{this}{that} >> instead of
+C<< exists $_->{this} && exists $_->{this}{that} >>
 as you may follow a long chain of "this"s
-
+Alternatively use the "no autovivification" pragma to avoid this problem.
 
 =head1 TODO
 
-put for @_ iin wrapper to allow parameters in a different wrapper,
+put for @_ in wrapper to allow parameters in a different wrapper,
 solve localizing problem.
-
-Note that the package/class name of the L<State Object>
-is subject to change.
-
-The want and seen accessors may change or become useful
-dynamic mutators.
 
 Store custom localized data about the traversal.
 Seems too difficult and ugly when compare to doing it at the call site.
@@ -345,15 +355,10 @@ Could potentially help localizing needs.  (Maybe only recurse last item)
 
 Benchmark.  Use array based object and/or direct access internally.
 
-rmap_objects shortcut for Scalar::Utils::blessed
-(Let me know of other useful rmap_??? wrappers)
-
 Think about permitting different callback for different types.
 The prototype syntax is a bit too flaky....
 
 Ensure that no memory leaks are possible, leaking the closure.
-
-Read http://www.cs.vu.nl/boilerplate/
 
 =head1 SEE ALSO
 
@@ -363,19 +368,22 @@ Faint traces of treemap:
 
  http://www.perlmonks.org/index.pl?node_id=60829
 
+Update: various alternatives have appear over the years,
+L<Data::Visitor> has a list.
+
 =head1 AUTHOR
 
 Brad Bowman E<lt>rmap@bereft.netE<gt>
 
 =head1 LICENCE AND COPYRIGHT
-       
-Copyright (c) 2004-2008 Brad Bowman (E<lt>rmap@bereft.netE<gt>). 
+
+Copyright (c) 2004- Brad Bowman (E<lt>rmap@bereft.netE<gt>).
 All rights reserved.
-       
+
 This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. 
+modify it under the same terms as Perl itself.
 See L<perlartistic> and L<perlgpl>.
-       
+
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -396,19 +404,19 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(rmap rmap_all cut);
 our %EXPORT_TAGS = (
-	types => [ qw(NONE VALUE HASH ARRAY SCALAR REF GLOB ALL) ],
+    types => [ qw(NONE VALUE HASH ARRAY SCALAR REF GLOB CODE ALL) ],
 );
-our @EXPORT_OK = ( qw(rmap_scalar rmap_hash rmap_array rmap_ref rmap_to),
-				@{ $EXPORT_TAGS{types} } );
+our @EXPORT_OK = ( qw(rmap_scalar rmap_hash rmap_array rmap_code rmap_ref rmap_to),
+                @{ $EXPORT_TAGS{types} } );
 
 $EXPORT_TAGS{all} = [ @EXPORT, @EXPORT_OK ];
 
 
 # Uses stringifying instead of S::U::ref* b/c it's under control
 my $cut = \do { my $thing }; # my = out of symbol table
-sub cut { 
-	die $cut = [@_]; # cut can return
-} 
+sub cut {
+    die $cut = [@_]; # cut can return
+}
 
 sub NONE()   { 0 }
 sub VALUE()  { 1 }
@@ -417,130 +425,138 @@ sub ARRAY()  { 4 }
 sub SCALAR() { 8 }
 sub REF()    { 16 }
 sub GLOB()   { 32 }
+sub CODE()   { 64 }
 sub ALL()    { VALUE|HASH|ARRAY|SCALAR|REF|GLOB }
 # Others like CODE, Regex, etc are ignored
 
 my %type_bits = (
-	HASH => HASH,
-	ARRAY => ARRAY,
-	SCALAR => SCALAR,
-	REF => REF,
-	GLOB => GLOB,
-	# reftype actually returns undef for:
-	VALUE => VALUE,
+    HASH => HASH,
+    ARRAY => ARRAY,
+    SCALAR => SCALAR,
+    REF => REF,
+    GLOB => GLOB,
+    CODE => CODE,
+    # reftype actually returns undef for:
+    VALUE => VALUE,
 );
 
 sub new {
-	bless { code => $_[1], want => $_[2], seen => $_[3] }, $_[0];
+    bless { code => $_[1], want => $_[2], seen => $_[3] }, $_[0];
 }
 sub code { $_[0]->{code} }
 sub want { $_[0]->{want} }
 sub seen { $_[0]->{seen} }
 sub call { $_[0]->{code}->($_[0]) }
 
-sub recurse { 
-	# needs to deref $_ and *then* run the code, enter _recurse directly
-	$_[0]->_recurse(); # cut not needed as seen remembers
+sub recurse {
+    # needs to deref $_ and *then* run the code, enter _recurse directly
+    $_[0]->_recurse(); # cut not needed as seen remembers
 }
 
-sub rmap (&@) { 
-	__PACKAGE__->new(shift, VALUE, {})->_rmap(@_);
+sub rmap (&@) {
+    __PACKAGE__->new(shift, VALUE, {})->_rmap(@_);
 }
 
-sub rmap_all (&@) { 
-	__PACKAGE__->new(shift, ALL, {})->_rmap(@_);
+sub rmap_all (&@) {
+    __PACKAGE__->new(shift, ALL, {})->_rmap(@_);
 }
 
-sub rmap_scalar (&@) { 
-	__PACKAGE__->new(shift, VALUE|SCALAR|REF, {})->_rmap(@_);
+sub rmap_scalar (&@) {
+    __PACKAGE__->new(shift, VALUE|SCALAR|REF, {})->_rmap(@_);
 }
 
-sub rmap_hash (&@) { 
-	__PACKAGE__->new(shift, HASH, {})->_rmap(@_);
+sub rmap_hash (&@) {
+    __PACKAGE__->new(shift, HASH, {})->_rmap(@_);
 }
 
-sub rmap_array (&@) { 
-	__PACKAGE__->new(shift, ARRAY, {})->_rmap(@_);
+sub rmap_array (&@) {
+    __PACKAGE__->new(shift, ARRAY, {})->_rmap(@_);
 }
 
-sub rmap_ref (&@) { 
-	__PACKAGE__->new(shift, HASH|ARRAY|SCALAR|REF, {})->_rmap(@_);
+sub rmap_code (&@) {
+    __PACKAGE__->new(shift, CODE, {})->_rmap(@_);
+}
+
+sub rmap_ref (&@) {
+    __PACKAGE__->new(shift, HASH|ARRAY|SCALAR|REF, {})->_rmap(@_);
 }
 
 sub rmap_to (&@) {
-	__PACKAGE__->new(shift, shift, {})->_rmap(@_);
+    __PACKAGE__->new(shift, shift, {})->_rmap(@_);
 }
 
 sub _rmap {
-	my $self = shift;
-	my @return;
+    my $self = shift;
+    my @return;
 
-	for (@_) { # just one after the wrapper call
-		my ($key, $type);
+    for (@_) { # just one after the wrapper call
+        my ($key, $type);
 
-		if($type = reftype($_)) {
-			$key = refaddr $_;
-			$type = $type_bits{$type} or next;
-		} else {
-			$key = "V:".refaddr(\$_); # prefix to distinguish from \$_
-			$type = VALUE;
-		}
+        if($type = reftype($_)) {
+            $key = refaddr $_;
+            $type = $type_bits{$type} or next;
+        } else {
+            $key = "V:".refaddr(\$_); # prefix to distinguish from \$_
+            $type = VALUE;
+        }
 
-		next if ( exists $self->seen->{$key} );
-		$self->seen->{$key} = undef; 
+        next if ( exists $self->seen->{$key} );
+        $self->seen->{$key} = undef;
 
-		# Call the $code
-		if($self->want & $type) {
-			my $e; # local($@) and rethrow caused problems
-			my @got;
-			{
-				local ($@); # don't trample, cut impl. should be transparent
-				# call in array context.  pass block for reentrancy
-				@got = eval { $self->call() };
-				$e = $@;
-			}
+        # Call the $code
+        if($self->want & $type) {
+            my $e; # local($@) and rethrow caused problems
+            my @got;
+            {
+                local ($@); # don't trample, cut impl. should be transparent
+                # call in array context.  pass block for reentrancy
+                @got = eval { $self->call() };
+                $e = $@;
+            }
 
-			if($e) {
-				if(ref($e) && $e == $cut) {
-					push @return, @$cut; # cut can add to return list
-					next; # they're cutting, don't recurse
-				} else { 
-					die $e; 
-				}
-			}
-			push @return, @got;
-		}
+            if($e) {
+                if(ref($e) && $e == $cut) {
+                    push @return, @$cut; # cut can add to return list
+                    next; # they're cutting, don't recurse
+                } else {
+                    die $e;
+                }
+            }
+            push @return, @got;
+        }
 
-		push @return, $self->_recurse(); # process $_ node
-	}
-	return @return;
+        push @return, $self->_recurse(); # process $_ node
+    }
+    return @return;
 }
 
 sub _recurse {
-	my $self = shift;
-	my $type = $type_bits{reftype($_) || 'VALUE'} or return;
-	my @return;
+    my $self = shift;
+    my $type = $type_bits{reftype($_) || 'VALUE'} or return;
+    my @return;
 
-	# Recurse appropriately, keeping $_ alias
-	if ($type & HASH) {
-		push @return, $self->_rmap($_) for values %$_;
-	} elsif ($type & ARRAY) {
-		# Does this change cut behaviour? No, cut is one scalar ref
-		#push @return, _rmap($code, $want, $seen, $_) for @$_;
-		push @return, $self->_rmap(@$_);
-	} elsif ($type & (SCALAR|REF) ) {
-		push @return, $self->_rmap($$_);
-	} elsif ($type & GLOB) {
-		# SCALAR is always there, undef may be unused or set to undef
-		push @return, $self->_rmap(*$_{SCALAR});
-		defined *$_{ARRAY} and
-			push @return, $self->_rmap(*$_{ARRAY});
-		defined *$_{HASH} and
-			push @return, $self->_rmap(*$_{HASH});
-		# Is it always: *f{GLOB} == \*f ?
-		# Also CODE PACKAGE NAME GLOB
-	}
-	return @return;
+    # Recurse appropriately, keeping $_ alias
+    if ($type & HASH) {
+        push @return, $self->_rmap($_) for values %$_;
+    } elsif ($type & ARRAY) {
+        # Does this change cut behaviour? No, cut is one scalar ref
+        #push @return, _rmap($code, $want, $seen, $_) for @$_;
+        push @return, $self->_rmap(@$_);
+    } elsif ($type & (SCALAR|REF) ) {
+        push @return, $self->_rmap($$_);
+    } elsif ($type & GLOB) {
+        # SCALAR is always there, undef may be unused or set to undef
+        push @return, $self->_rmap(*$_{SCALAR});
+        defined *$_{ARRAY} and
+            push @return, $self->_rmap(*$_{ARRAY});
+        defined *$_{HASH} and
+            push @return, $self->_rmap(*$_{HASH});
+        defined *$_{CODE} and
+            push @return, $self->_rmap(*$_{CODE});
+        # Is it always: *f{GLOB} == \*f ?
+        # Also PACKAGE NAME GLOB
+    }
+    return @return;
 }
 
 1;
